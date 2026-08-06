@@ -126,5 +126,6 @@ def main() -> None:
         logger.error("Failed to complete the feature engineering process: %s", exc)
         raise SystemExit(1) from exc
 
+
 if __name__ == "__main__":
     main()

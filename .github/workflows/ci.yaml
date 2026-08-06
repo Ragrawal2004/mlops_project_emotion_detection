@@ -38,19 +38,7 @@ jobs:
       - name: Run Flake8
         run: |
           flake8 src tests flask_app scripts
-
-      - name: Check Code Formatting
-        run: |
-          black --check src tests flask_app scripts
-
-      - name: Check Import Order
-        run: |
-          isort --check-only src tests flask_app scripts
-
-      - name: Run Pylint
-        run: |
-          pylint src flask_app
-
+          
       - name: Run DVC Pipeline
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}

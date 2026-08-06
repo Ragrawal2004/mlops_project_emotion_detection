@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  sentiment-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mlops-mini-project:latest
+    container_name: sentiment-app
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env  # must contain DAGSHUB_PAT=<your token>
+    volumes:
+      # Mount models/ so a locally-trained vectorizer.pkl/model.pkl (produced
+      # by `dvc repro` on the host) is visible inside the container without
+      # rebuilding the image every time you retrain.
+      - ./models:/app/models:ro
+    restart: unless-stopped

@@ -1,0 +1,136 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  project-testing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Lint Code
+        run: |
+          flake8 src tests flask_app scripts
+
+      - name: Run DVC Pipeline
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          dvc repro
+
+      - name: Upload trained model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: |
+            models/model.pkl
+            models/vectorizer.pkl
+          retention-days: 1
+
+      - name: Run Model Tests
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          python -m unittest tests/test_model.py
+
+      - name: Promote Model
+        if: success()
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          python scripts/promote_model.py
+
+      - name: Run Flask Tests
+        if: success()
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          python -m unittest tests/test_flask_app.py
+
+  docker-build:
+    needs: project-testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: mlops-mini-project:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Download trained model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts
+          path: models
+
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name smoke-test \
+            -p 5001:5001 \
+            -e DAGSHUB_PAT="${DAGSHUB_PAT}" \
+            -v "$PWD/models:/app/models:ro" \
+            mlops-mini-project:${{ github.sha }}
+
+          # Give gunicorn a few seconds to boot and load the model.
+          for i in {1..10}; do
+            if curl -sf http://localhost:5001/ > /dev/null; then
+              echo "Container responded successfully"
+              break
+            fi
+            sleep 3
+          done
+
+          curl -sf http://localhost:5001/ > /dev/null || (docker logs smoke-test && exit 1)
+          docker stop smoke-test
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+
+      # Push is disabled by default since no registry/credentials were
+      # requested. To enable, add DOCKERHUB_USERNAME / DOCKERHUB_TOKEN (or
+      # GHCR credentials) as repo secrets and flip `push: true` above, or
+      # uncomment a dedicated login step here, e.g.:
+      #
+      # - name: Log in to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}

@@ -1,0 +1,6 @@
+[core]
+    remote = storage
+['remote "localstorage"']
+    url = /Users/rounakagrawal/dvc-storage
+['remote "storage"']
+    url = s3://rounak-mini-project-dagshub

@@ -1,0 +1,48 @@
+# Version control
+.git
+.github
+
+# Virtual environments
+venv/
+.venv/
+myenv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# DVC internals (cache/tmp shouldn't be in the image; data comes via dvc pull)
+.dvc/cache
+.dvc/tmp
+
+# MLflow local store
+mlruns/
+
+# Data — pulled at runtime via DVC, not baked into the image
+data/
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Secrets — NEVER bake these into an image
+.env
+flask_app/.env
+
+# Docs / notebooks / tests not needed at runtime
+docs/
+notebooks/
+tests/
+reports/
+
+# Editor/OS junk
+.vscode/
+.idea/
+.DS_Store
+
+# Docker itself
+Dockerfile
+docker-compose.yml
+.dockerignore

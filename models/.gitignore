@@ -1,0 +1,2 @@
+# Model binaries are tracked by DVC, not Git.
+*.pkl

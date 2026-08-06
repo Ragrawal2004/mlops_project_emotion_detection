@@ -1,0 +1,36 @@
+# Packaging (setuptools provides pkg_resources, required by mlflow;
+# newer Python venvs no longer bundle this by default)
+setuptools>=68,<75
+wheel>=0.42
+
+# Core ML / data
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
+scipy==1.14.0
+nltk==3.8.1
+
+# Web app
+Flask==3.0.3
+Werkzeug==3.0.3
+gunicorn==22.0.0
+
+# Experiment tracking / versioning
+mlflow==2.15.0
+dagshub==0.3.34
+dvc==3.53.0
+dvc-s3==3.2.0
+# dvc==3.53.0 was built against an older pathspec API (uses _DIR_MARK,
+# removed in pathspec 0.12+); pin to avoid `dvc repro` crashing on a
+# fresh install that pulls in the newest pathspec.
+pathspec==0.11.2
+
+# Config / env
+PyYAML==6.0.1
+python-dotenv==1.0.1
+
+# Testing / linting
+flake8==7.1.0
+
+# Plotting (src/visualization)
+matplotlib==3.9.1

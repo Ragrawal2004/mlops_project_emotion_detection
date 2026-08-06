@@ -97,7 +97,9 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
         raise DataIngestionError(f"Missing expected column: {exc}") from exc
 
 
-def save_data(train_data: pd.DataFrame, test_data: pd.DataFrame, data_path: str) -> None:
+def save_data(
+    train_data: pd.DataFrame, test_data: pd.DataFrame, data_path: str
+) -> None:
     """Persist the train/test split to ``<data_path>/raw``.
 
     Args:

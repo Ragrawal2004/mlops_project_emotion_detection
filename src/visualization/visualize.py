@@ -11,7 +11,11 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import ConfusionMatrixDisplay, classification_report, confusion_matrix
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    classification_report,
+    confusion_matrix,
+)
 
 from src.config.config import FIGURES_DIR, REPORTS_DIR
 from src.logger import get_logger
@@ -37,7 +41,9 @@ def plot_confusion_matrix(
     output_path = output_path or str(FIGURES_DIR / "confusion_matrix.png")
 
     cm = confusion_matrix(y_true, y_pred)
-    display = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["sadness", "happiness"])
+    display = ConfusionMatrixDisplay(
+        confusion_matrix=cm, display_labels=["sadness", "happiness"]
+    )
     display.plot(cmap="Blues", values_format="d")
     plt.title("Confusion Matrix")
     plt.tight_layout()
@@ -63,7 +69,9 @@ def save_classification_report(
         The path the report was saved to.
     """
     output_path = output_path or str(REPORTS_DIR / "classification_report.txt")
-    report = classification_report(y_true, y_pred, target_names=["sadness", "happiness"])
+    report = classification_report(
+        y_true, y_pred, target_names=["sadness", "happiness"]
+    )
     with open(output_path, "w") as file:
         file.write(report)
 

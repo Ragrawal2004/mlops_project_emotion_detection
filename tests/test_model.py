@@ -68,7 +68,9 @@ class TestModel(unittest.TestCase):
 
         prediction = self.new_model.predict(sample_df)
 
-        self.assertEqual(sample_df.shape[1], len(self.vectorizer.get_feature_names_out()))
+        self.assertEqual(
+            sample_df.shape[1], len(self.vectorizer.get_feature_names_out())
+        )
         self.assertEqual(len(prediction), 1)
 
     def test_prediction(self):
@@ -114,7 +116,9 @@ class TestModel(unittest.TestCase):
         print(f"\nAccuracy Improvement = {improvement * 100:.2f}%")
 
         self.assertGreaterEqual(
-            improvement, MIN_ACCURACY_IMPROVEMENT, "Model did not improve by at least 1%."
+            improvement,
+            MIN_ACCURACY_IMPROVEMENT,
+            "Model did not improve by at least 1%.",
         )
 
 

@@ -47,7 +47,9 @@ def main() -> None:
         test_processed_data = normalize_text(test_data)
 
         os.makedirs(INTERIM_DATA_DIR, exist_ok=True)
-        train_processed_data.to_csv(INTERIM_DATA_DIR / "train_processed.csv", index=False)
+        train_processed_data.to_csv(
+            INTERIM_DATA_DIR / "train_processed.csv", index=False
+        )
         test_processed_data.to_csv(INTERIM_DATA_DIR / "test_processed.csv", index=False)
 
         logger.debug("Processed data saved to %s", INTERIM_DATA_DIR)

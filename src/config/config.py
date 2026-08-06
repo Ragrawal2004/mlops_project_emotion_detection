@@ -60,7 +60,9 @@ RANDOM_SEED: int = 42
 # --------------------------------------------------------------------------
 DAGSHUB_REPO_OWNER: str = "Ragrawal2004"
 DAGSHUB_REPO_NAME: str = "mlops_project_emotion_detection"
-MLFLOW_TRACKING_URI: str = f"https://dagshub.com/{DAGSHUB_REPO_OWNER}/{DAGSHUB_REPO_NAME}.mlflow"
+MLFLOW_TRACKING_URI: str = (
+    f"https://dagshub.com/{DAGSHUB_REPO_OWNER}/{DAGSHUB_REPO_NAME}.mlflow"
+)
 MLFLOW_EXPERIMENT_NAME: str = "dvc-pipeline"
 
 REGISTERED_MODEL_NAME: str = "my_model"
@@ -81,9 +83,7 @@ def get_dagshub_token() -> str:
     """
     token = os.getenv(DAGSHUB_PAT_ENV_VAR)
     if not token:
-        raise EnvironmentError(
-            f"{DAGSHUB_PAT_ENV_VAR} environment variable is not set"
-        )
+        raise EnvironmentError(f"{DAGSHUB_PAT_ENV_VAR} environment variable is not set")
     return token
 
 
@@ -108,4 +108,6 @@ def configure_mlflow_tracking() -> None:
 
     import dagshub
 
-    dagshub.init(repo_owner=DAGSHUB_REPO_OWNER, repo_name=DAGSHUB_REPO_NAME, mlflow=True)
+    dagshub.init(
+        repo_owner=DAGSHUB_REPO_OWNER, repo_name=DAGSHUB_REPO_NAME, mlflow=True
+    )

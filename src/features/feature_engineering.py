@@ -59,7 +59,9 @@ def load_data(file_path: str) -> pd.DataFrame:
         raise FeatureEngineeringError(f"Failed to parse CSV at {file_path}") from exc
 
 
-def apply_bow(train_data: pd.DataFrame, test_data: pd.DataFrame, max_features: int) -> tuple:
+def apply_bow(
+    train_data: pd.DataFrame, test_data: pd.DataFrame, max_features: int
+) -> tuple:
     """Fit a Bag-of-Words vectorizer on train data and transform train/test.
 
     Persists the fitted vectorizer to ``VECTORIZER_PATH`` so the Flask app

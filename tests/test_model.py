@@ -10,15 +10,12 @@ import unittest
 
 import mlflow
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import (accuracy_score, f1_score, precision_score,
+                             recall_score)
 
-from src.config.config import (
-    MODEL_STAGE_PRODUCTION,
-    PROCESSED_DATA_DIR,
-    REGISTERED_MODEL_NAME,
-    VECTORIZER_PATH,
-    configure_mlflow_tracking,
-)
+from src.config.config import (MODEL_STAGE_PRODUCTION, PROCESSED_DATA_DIR,
+                               REGISTERED_MODEL_NAME, VECTORIZER_PATH,
+                               configure_mlflow_tracking)
 
 MIN_ACCURACY_IMPROVEMENT = 0.01
 

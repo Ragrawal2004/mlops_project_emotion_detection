@@ -5,12 +5,9 @@ import json
 
 import mlflow
 
-from src.config.config import (
-    EXPERIMENT_INFO_PATH,
-    MODEL_STAGE_STAGING,
-    REGISTERED_MODEL_NAME,
-    configure_mlflow_tracking,
-)
+from src.config.config import (EXPERIMENT_INFO_PATH, MODEL_STAGE_STAGING,
+                               REGISTERED_MODEL_NAME,
+                               configure_mlflow_tracking)
 from src.exceptions import ModelRegistrationError
 from src.logger import get_logger
 

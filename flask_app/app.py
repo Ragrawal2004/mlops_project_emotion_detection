@@ -11,11 +11,8 @@ import mlflow
 import pandas as pd
 from flask import Flask, render_template, request
 
-from src.config.config import (
-    REGISTERED_MODEL_NAME,
-    VECTORIZER_PATH,
-    configure_mlflow_tracking,
-)
+from src.config.config import (REGISTERED_MODEL_NAME, VECTORIZER_PATH,
+                               configure_mlflow_tracking)
 from src.exceptions import ConfigurationError
 from src.features.text_processing import normalize_text
 from src.logger import get_logger

@@ -11,11 +11,8 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import (
-    ConfusionMatrixDisplay,
-    classification_report,
-    confusion_matrix,
-)
+from sklearn.metrics import (ConfusionMatrixDisplay, classification_report,
+                             confusion_matrix)
 
 from src.config.config import FIGURES_DIR, REPORTS_DIR
 from src.logger import get_logger

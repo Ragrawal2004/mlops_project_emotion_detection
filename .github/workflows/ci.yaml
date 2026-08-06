@@ -36,16 +36,20 @@ jobs:
           pip install -e .
 
       - name: Run Flake8
-        run: flake8 src tests flask_app scripts
+        run: |
+          flake8 src tests flask_app scripts
 
       - name: Check Code Formatting
-        run: black --check .
+        run: |
+          black --check src tests flask_app scripts
 
       - name: Check Import Order
-        run: isort --check-only .
+        run: |
+          isort --check-only src tests flask_app scripts
 
       - name: Run Pylint
-        run: pylint src flask_app
+        run: |
+          pylint src flask_app
 
       - name: Run DVC Pipeline
         env:
@@ -110,25 +114,29 @@ jobs:
       - name: Smoke Test
         run: |
           for i in {1..15}; do
-            if curl -f http://localhost:5001/ > /dev/null; then
+            if curl -fs http://localhost:5001/ > /dev/null; then
               echo "Application started successfully."
               exit 0
             fi
             sleep 3
           done
 
+          echo "Smoke test failed!"
           docker logs mlops-container
           exit 1
 
       - name: Push Docker Image
+        if: success()
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/mlops-mini-project:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/mlops-mini-project:${{ github.sha }}
 
       - name: Stop Docker Container
         if: always()
-        run: docker stop mlops-container
+        run: |
+          docker stop mlops-container || true
 
       - name: Remove Docker Container
         if: always()
-        run: docker rm mlops-container
+        run: |
+          docker rm mlops-container || true

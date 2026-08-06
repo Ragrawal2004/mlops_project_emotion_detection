@@ -6,7 +6,10 @@ This project is a Bag-of-Words + Logistic Regression sentiment classifier
 (happiness vs. sadness) for tweets, wired into an MLOps pipeline:
 
 ```
-raw data --> preprocessing --> feature engineering --> training --> evaluation --> registration --> promotion --> Flask serving
+raw data --> preprocessing --> feature engineering --> training --> 
+
+
+evaluation --> registration --> promotion --> Flask serving
 ```
 
 ## Pipeline stages (DVC-orchestrated, see `dvc.yaml`)

@@ -13,12 +13,16 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (accuracy_score, precision_score, recall_score,
-                             roc_auc_score)
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
 
-from src.config.config import (EXPERIMENT_INFO_PATH, METRICS_PATH,
-                               MLFLOW_EXPERIMENT_NAME, MODEL_PATH,
-                               PROCESSED_DATA_DIR, configure_mlflow_tracking)
+from src.config.config import (
+    EXPERIMENT_INFO_PATH,
+    METRICS_PATH,
+    MLFLOW_EXPERIMENT_NAME,
+    MODEL_PATH,
+    PROCESSED_DATA_DIR,
+    configure_mlflow_tracking,
+)
 from src.exceptions import ModelEvaluationError
 from src.logger import get_logger
 

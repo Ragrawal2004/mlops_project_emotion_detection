@@ -12,8 +12,12 @@ import pandas as pd
 import yaml
 from sklearn.feature_extraction.text import CountVectorizer
 
-from src.config.config import (INTERIM_DATA_DIR, PARAMS_PATH,
-                               PROCESSED_DATA_DIR, VECTORIZER_PATH)
+from src.config.config import (
+    INTERIM_DATA_DIR,
+    PARAMS_PATH,
+    PROCESSED_DATA_DIR,
+    VECTORIZER_PATH,
+)
 from src.exceptions import FeatureEngineeringError
 from src.logger import get_logger
 

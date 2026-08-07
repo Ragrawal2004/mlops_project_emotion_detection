@@ -9,40 +9,68 @@ the Flask app.
 
 import re
 import string
+import threading
 
 import nltk
 import pandas as pd
-from nltk.corpus import stopwords
+from nltk.corpus import stopwords as _stopwords_corpus
+from nltk.corpus import wordnet as _wordnet_corpus
 from nltk.stem import WordNetLemmatizer
 
 _NLTK_RESOURCES_READY = False
+_NLTK_LOCK = threading.Lock()
+
+# Built once, after the corpora are confirmed loaded. NLTK's WordNet corpus
+# reader lazy-loads on first access, and that lazy-load is NOT thread-safe:
+# if two Flask requests hit lemmatize()/remove_stop_words() at roughly the
+# same time (the dev server handles requests in separate threads), both
+# threads can trigger the lazy load simultaneously and corrupt the loader's
+# internal state, raising
+# AttributeError: 'WordNetCorpusReader' object has no attribute
+# '_LazyCorpusLoader__args'
+# Forcing the load once at startup (under a lock) and reusing a single
+# lemmatizer/stopword-set instance avoids that race entirely.
+_lemmatizer: WordNetLemmatizer | None = None
+_stop_words: set | None = None
 
 
 def ensure_nltk_resources() -> None:
-    """Download the NLTK corpora required for lemmatization/stopwords.
+    """Download and eagerly load the NLTK corpora used for text cleaning.
 
-    Idempotent and cheap to call multiple times; NLTK itself no-ops if the
-    resource is already present, but we additionally guard with a module
-    level flag to avoid the network/filesystem check on every call.
+    Thread-safe and idempotent: guarded by a lock so concurrent Flask
+    request threads can't race on NLTK's lazy corpus loading.
     """
-    global _NLTK_RESOURCES_READY
+    global _NLTK_RESOURCES_READY, _lemmatizer, _stop_words
+
     if _NLTK_RESOURCES_READY:
         return
-    nltk.download("wordnet", quiet=True)
-    nltk.download("stopwords", quiet=True)
-    _NLTK_RESOURCES_READY = True
+
+    with _NLTK_LOCK:
+        if _NLTK_RESOURCES_READY:  # re-check after acquiring the lock
+            return
+
+        nltk.download("wordnet", quiet=True)
+        nltk.download("stopwords", quiet=True)
+
+        # Force the lazy loaders to fully resolve now, while safely inside
+        # the lock, instead of on first use from arbitrary request threads.
+        _wordnet_corpus.ensure_loaded()
+        _stop_words = set(_stopwords_corpus.words("english"))
+        _lemmatizer = WordNetLemmatizer()
+
+        _NLTK_RESOURCES_READY = True
 
 
 def lemmatize(text: str) -> str:
     """Lemmatize each whitespace-separated token in ``text``."""
-    lemmatizer = WordNetLemmatizer()
-    return " ".join(lemmatizer.lemmatize(word) for word in text.split())
+    ensure_nltk_resources()
+    return " ".join(_lemmatizer.lemmatize(word) for word in text.split())
 
 
 def remove_stop_words(text: str) -> str:
     """Remove English stop words from ``text``."""
-    stop_words = set(stopwords.words("english"))
-    return " ".join(word for word in str(text).split() if word not in stop_words)
+    ensure_nltk_resources()
+    return " ".join(word for word in str(text).split() if word not in _stop_words)
 
 
 def remove_numbers(text: str) -> str:

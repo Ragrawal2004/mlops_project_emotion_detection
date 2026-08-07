@@ -14,13 +14,20 @@ from flask import Flask, render_template, request
 from src.config.config import (REGISTERED_MODEL_NAME, VECTORIZER_PATH,
                                configure_mlflow_tracking)
 from src.exceptions import ConfigurationError
-from src.features.text_processing import normalize_text
+from src.features.text_processing import ensure_nltk_resources, normalize_text
 from src.logger import get_logger
 
 logger = get_logger(__name__, log_filename="flask_app.log")
 
 configure_mlflow_tracking()
 logger.debug("Tracking URI: %s", mlflow.get_tracking_uri())
+
+# Load WordNet/stopwords once, synchronously, at startup — before any
+# request thread can touch them. See src/features/text_processing.py for
+# why concurrent lazy-loading of the WordNet corpus crashes with
+# AttributeError: 'WordNetCorpusReader' object has no attribute
+# '_LazyCorpusLoader__args'
+ensure_nltk_resources()
 
 app = Flask(__name__)
 

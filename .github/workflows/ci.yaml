@@ -171,10 +171,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: http://${{ secrets.EC2_HOST }}:5001
-
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3

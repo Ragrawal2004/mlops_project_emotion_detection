@@ -35,6 +35,10 @@ class TestModel(unittest.TestCase):
         production = cls.client.get_latest_versions(
             cls.model_name, stages=[MODEL_STAGE_PRODUCTION]
         )
+        if cls.latest_version == cls.production_version:
+           raise unittest.SkipTest(
+        "Latest registered version is already in Production — nothing new to compare."
+             )
         if len(production) == 0:
             raise unittest.SkipTest("No Production model found.")
         cls.production_version = production[0].version

@@ -17,9 +17,6 @@ from nltk.corpus import stopwords as _stopwords_corpus
 from nltk.corpus import wordnet as _wordnet_corpus
 from nltk.stem import WordNetLemmatizer
 
-
-
-
 _NLTK_RESOURCES_READY = False
 _NLTK_LOCK = threading.Lock()
 

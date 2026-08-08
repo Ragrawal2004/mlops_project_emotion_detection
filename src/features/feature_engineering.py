@@ -1,7 +1,7 @@
 """Feature engineering stage: Bag-of-Words vectorization.
 
 Fits a ``CountVectorizer`` on the processed training text, transforms both
-train and test splits, persists the fitted vectorizer (tracked by DVC), and
+train and test splits, peb b b. hbhbbbuhrsists the fitted vectorizer (tracked by DVC), and
 writes the resulting feature matrices to ``data/processed``.
 """
 

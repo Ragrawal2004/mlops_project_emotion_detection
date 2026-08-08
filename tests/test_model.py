@@ -35,10 +35,6 @@ class TestModel(unittest.TestCase):
         production = cls.client.get_latest_versions(
             cls.model_name, stages=[MODEL_STAGE_PRODUCTION]
         )
-        if cls.latest_version == cls.production_version:
-           raise unittest.SkipTest(
-        "Latest registered version is already in Production — nothing new to compare."
-             )
         if len(production) == 0:
             raise unittest.SkipTest("No Production model found.")
         cls.production_version = production[0].version
@@ -46,6 +42,12 @@ class TestModel(unittest.TestCase):
         versions = cls.client.search_model_versions(f"name='{cls.model_name}'")
         latest = max(versions, key=lambda version: int(version.version))
         cls.latest_version = latest.version
+
+        if cls.latest_version == cls.production_version:
+            raise unittest.SkipTest(
+                "Latest registered version is already in Production — "
+                "nothing new to compare."
+            )
 
         cls.production_model = mlflow.pyfunc.load_model(
             f"models:/{cls.model_name}/{cls.production_version}"

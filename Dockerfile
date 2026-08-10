@@ -1,59 +1,95 @@
 # syntax=docker/dockerfile:1
-
-# --------------------------------------------------------------------------
-# Base image
-# --------------------------------------------------------------------------
-FROM python:3.10-slim AS base
-
-# Don't buffer stdout/stderr (so logs show up immediately in `docker logs`),
-# and don't write .pyc files into the image.
+# ============================================================
+# STAGE 1 — BUILD
+# ============================================================
+FROM python:3.10-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    NLTK_DATA=/opt/nltk_data
 WORKDIR /app
 
-# --------------------------------------------------------------------------
-# System dependencies
-# --------------------------------------------------------------------------
-# gcc/build-essential are needed to build a couple of the ML wheels on slim
-# images; removed again in the same layer to keep the image small.
+# Build dependencies only exist in this stage
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
+    && python -m venv /opt/venv \
     && rm -rf /var/lib/apt/lists/*
+ENV PATH="/opt/venv/bin:$PATH"
 
-# --------------------------------------------------------------------------
-# Python dependencies (separate layer so code changes don't bust the cache)
-# --------------------------------------------------------------------------
+# Copy only dependency-related files first
 COPY requirements.txt setup.py ./
+
+# Install Python dependencies
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --no-compile -r requirements.txt
+
+# Install application
 COPY src ./src
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && pip install -e .
+RUN pip install --no-cache-dir --no-compile . --no-deps
 
-# Pre-download the NLTK corpora used by src/features/text_processing.py so
-# the container doesn't hit the network on first request.
-RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('wordnet')"
+# Download required NLTK resources, then VALIDATE them immediately.
+# This is critical: nltk.download() can silently write a truncated/corrupt
+# zip on a flaky connection. Without validation, the build "succeeds" but
+# the app crashes at runtime with zipfile.BadZipFile the first time a
+# gunicorn worker tries to lazily load the corpus — much harder to debug
+# than a failed build.
+RUN python -c "import nltk; \
+    nltk.download('stopwords', download_dir='/opt/nltk_data'); \
+    nltk.download('wordnet', download_dir='/opt/nltk_data')" \
+    && python -c "import nltk; nltk.data.path.insert(0, '/opt/nltk_data'); \
+    nltk.data.find('corpora/wordnet.zip'); \
+    nltk.data.find('corpora/stopwords.zip'); \
+    print('NLTK data verified OK')"
 
-# --------------------------------------------------------------------------
-# Application code
-# --------------------------------------------------------------------------
+# Remove pip/setuptools caches and unnecessary metadata
+RUN rm -rf \
+    /root/.cache \
+    /tmp/* \
+    /opt/venv/lib/python3.10/site-packages/pip* \
+    /opt/venv/lib/python3.10/site-packages/setuptools*
+
+# ============================================================
+# STAGE 2 — RUNTIME
+# ============================================================
+FROM python:3.10-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    NLTK_DATA=/opt/nltk_data \
+    FLASK_APP=flask_app/app.py
+WORKDIR /app
+
+# Copy only runtime dependencies
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /opt/nltk_data /opt/nltk_data
+
+# Application files only
+COPY src ./src
 COPY flask_app ./flask_app
 COPY models ./models
 
-# The vectorizer must exist at build/run time — it's produced by the DVC
-# pipeline (feature_engineering stage) and is tracked by DVC, not baked
-# into the image build itself. Mount it in, or run `dvc pull` before
-# `docker build` (see README/docs/architecture.md for details).
+# Create non-root user and required directory (logs dir must exist and be
+# writable by this UID before the app starts, or gunicorn workers crash
+# with PermissionError on boot)
+RUN mkdir -p /app/logs \
+    && chown -R 10001:10001 /app
+USER 10001:10001
 
-# --------------------------------------------------------------------------
-# Runtime configuration
-# --------------------------------------------------------------------------
 EXPOSE 5001
 
-# DAGSHUB_PAT must be supplied at `docker run` time (-e DAGSHUB_PAT=...),
-# never baked into the image.
-ENV FLASK_APP=flask_app/app.py
+# No curl required — uses Python's stdlib for the healthcheck
+HEALTHCHECK --interval=30s \
+    --timeout=5s \
+    --start-period=15s \
+    --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/', timeout=3)" || exit 1
 
-# gunicorn instead of the Flask dev server for anything beyond local testing.
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--timeout", "120", "flask_app.app:app"]
+# DAGSHUB_PAT must be supplied at `docker run` time, never baked into the image.
+
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:5001", \
+     "--workers", "2", \
+     "--timeout", "120", \
+     "flask_app.app:app"]

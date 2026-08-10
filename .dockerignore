@@ -1,48 +1,86 @@
-# Version control
+# ============================================================
+# GIT / VERSION CONTROL
+# ============================================================
 .git
 .github
+.gitignore
 
-# Virtual environments
+# ============================================================
+# PYTHON VIRTUAL ENVIRONMENTS
+# ============================================================
 venv/
 .venv/
+env/
 myenv/
 
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+
+# Python packaging
 *.egg-info/
+build/
+dist/
 
-# DVC internals (cache/tmp shouldn't be in the image; data comes via dvc pull)
-.dvc/cache
-.dvc/tmp
+# ============================================================
+# DVC
+# ============================================================
+.dvc/cache/
+.dvc/tmp/
 
-# MLflow local store
+# ============================================================
+# MLFLOW
+# ============================================================
 mlruns/
 
-# Data — pulled at runtime via DVC, not baked into the image
+# ============================================================
+# DATA
+# ============================================================
+# Don't bake datasets into the Docker image
 data/
 
-# Logs
+# ============================================================
+# LOGS
+# ============================================================
 logs/*
 !logs/.gitkeep
 
-# Secrets — NEVER bake these into an image
+# ============================================================
+# SECRETS
+# ============================================================
 .env
-flask_app/.env
+.env.*
+*.pem
+*.key
 
-# Docs / notebooks / tests not needed at runtime
+# ============================================================
+# DEVELOPMENT FILES
+# ============================================================
 docs/
 notebooks/
 tests/
 reports/
+.ipynb_checkpoints/
 
-# Editor/OS junk
+# ============================================================
+# EDITOR / OS
+# ============================================================
 .vscode/
 .idea/
 .DS_Store
 
-# Docker itself
+# ============================================================
+# DOCKER
+# ============================================================
 Dockerfile
 docker-compose.yml
 .dockerignore
+
+# ============================================================
+# TEMPORARY FILES
+# ============================================================
+*.log
+*.tmp
+*.bak

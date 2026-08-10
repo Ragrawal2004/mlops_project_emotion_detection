@@ -42,12 +42,12 @@ RUN python -c "import nltk; \
     nltk.data.find('corpora/stopwords.zip'); \
     print('NLTK data verified OK')"
 
-# Remove pip/setuptools caches and unnecessary metadata
-RUN rm -rf \
-    /root/.cache \
-    /tmp/* \
-    /opt/venv/lib/python3.10/site-packages/pip* \
-    /opt/venv/lib/python3.10/site-packages/setuptools*
+# Clean build caches only. pip/setuptools are DELIBERATELY KEPT: mlflow
+# imports pkg_resources at runtime, and pkg_resources pulls jaraco.text
+# from setuptools's vendored bundle (setuptools/_vendor/jaraco). Deleting
+# setuptools breaks mlflow with "ModuleNotFoundError: No module named
+# 'jaraco'" the first time a gunicorn worker imports it.
+RUN rm -rf /root/.cache /tmp/*
 
 # ============================================================
 # STAGE 2 — RUNTIME
@@ -72,9 +72,13 @@ COPY models ./models
 
 # Create non-root user and required directory (logs dir must exist and be
 # writable by this UID before the app starts, or gunicorn workers crash
-# with PermissionError on boot)
+# with PermissionError on boot). Also re-chown /opt/nltk_data and
+# /opt/venv — COPY --from=builder preserves root ownership by default,
+# and this UID can't read root-owned files, which makes nltk.data.find()
+# silently fail and fall back to a runtime download that then also fails
+# with PermissionError (no write access to the default /nltk_data path).
 RUN mkdir -p /app/logs \
-    && chown -R 10001:10001 /app
+    && chown -R 10001:10001 /app /opt/nltk_data /opt/venv
 USER 10001:10001
 
 EXPOSE 5001

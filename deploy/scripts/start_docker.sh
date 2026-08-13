@@ -3,8 +3,9 @@ set -e
 
 AWS_REGION="ap-south-1"
 AWS_ACCOUNT_ID="165098158976"
-ECR_REPOSITORY="mlops-mini-project"
-IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
+ECR_REPOSITORY="rounak_mlflow"
+IMAGE_TAG="v3"
+IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
 # Login to AWS ECR
 aws ecr get-login-password --region "$AWS_REGION" | \

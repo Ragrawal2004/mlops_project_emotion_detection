@@ -6,13 +6,13 @@ files:
 hooks:
   BeforeInstall:
     - location: deploy/scripts/install_dependencies.sh
-      timeout: 300
+      timeout: 800
       runas: ubuntu
   ApplicationStart:
     - location: deploy/scripts/start_docker.sh
-      timeout: 300
+      timeout: 800
       runas: ubuntu
   ValidateService:
     - location: deploy/scripts/validate.sh
-      timeout: 60
+      timeout: 500
       runas: ubuntu

@@ -81,19 +81,19 @@ RUN mkdir -p /app/logs \
     && chown -R 10001:10001 /app /opt/nltk_data /opt/venv
 USER 10001:10001
 
-EXPOSE 5001
+EXPOSE 80
 
 # No curl required — uses Python's stdlib for the healthcheck
 HEALTHCHECK --interval=30s \
     --timeout=5s \
     --start-period=15s \
     --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/', timeout=3)" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:80/health', timeout=3)" || exit 1
 
 # DAGSHUB_PAT must be supplied at `docker run` time, never baked into the image.
 
 CMD ["gunicorn", \
-     "--bind", "0.0.0.0:5001", \
+     "--bind", "0.0.0.0:80", \
      "--workers", "2", \
      "--timeout", "120", \
      "flask_app.app:app"]

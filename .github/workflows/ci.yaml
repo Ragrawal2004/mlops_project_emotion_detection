@@ -146,13 +146,13 @@ jobs:
       - name: Smoke-test the image
         run: |
           docker run -d --name smoke-test \
-            -p 5001:5001 \
+            -p 80:80 \
             -e DAGSHUB_PAT="${DAGSHUB_PAT}" \
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
           echo "Waiting for the app to become healthy..."
           for i in {1..15}; do
-            if curl -fs http://localhost:5001/ > /dev/null; then
+            if curl -fs http://localhost:80/health > /dev/null; then
               echo "Container responded successfully."
               exit 0
             fi
@@ -217,14 +217,14 @@ jobs:
             echo "Starting new container..."
             docker run -d \
               --name sentiment-app \
-              -p 5001:5001 \
+              -p 80:80 \
               -e DAGSHUB_PAT="${{ secrets.DAGSHUB_PAT }}" \
               --restart unless-stopped \
               "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
 
             echo "Waiting for the app to become healthy..."
             for i in {1..15}; do
-              if curl -fs http://localhost:5001/ > /dev/null; then
+              if curl -fs http://localhost:80/health > /dev/null; then
                 echo "Deployment successful."
                 exit 0
               fi

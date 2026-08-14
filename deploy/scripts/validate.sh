@@ -4,7 +4,7 @@
 # CodeDeploy marks the whole deployment as FAILED.
 
 for i in {1..15}; do
-  if curl -fs http://localhost:5001/health > /dev/null; then
+  if curl -fs http://localhost:80/health > /dev/null; then
     echo "Service is healthy."
     exit 0
   fi

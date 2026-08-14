@@ -28,7 +28,7 @@ fi
 # Run a new container — DAGSHUB_PAT read from a file on disk, never
 # hardcoded in this script (see setup step: /home/ubuntu/.dagshub_pat)
 docker run -d \
-  -p 5001:5001 \
+  -p 80:80 \
   -e DAGSHUB_PAT=47bf3b542aec24b9bd183e1332212cfd2c8c3d19\
   --restart unless-stopped \
   --name sentiment-app \

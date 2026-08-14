@@ -8,7 +8,7 @@ services:
     image: mlops-mini-project:latest
     container_name: sentiment-app
     ports:
-      - "5001:5001"
+      - "80:80"
     env_file:
       - .env  # must contain DAGSHUB_PAT=<your token>
     volumes:

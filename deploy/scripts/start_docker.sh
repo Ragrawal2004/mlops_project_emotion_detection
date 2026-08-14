@@ -4,7 +4,7 @@ set -e
 AWS_REGION="ap-south-1"
 AWS_ACCOUNT_ID="165098158976"
 ECR_REPOSITORY="rounak_mlflow"
-IMAGE_TAG="v3"
+IMAGE_TAG="latest"
 IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
 # Login to AWS ECR

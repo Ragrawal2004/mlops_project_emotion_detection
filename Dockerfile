@@ -2,95 +2,81 @@
 # ============================================================
 # STAGE 1 — BUILD
 # ============================================================
-FROM python:3.10-slim AS builder
+FROM python:3.10-slim-bookworm AS builder
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    NLTK_DATA=/opt/nltk_data
+    NLTK_DATA=/opt/nltk_data \
+    PATH="/opt/venv/bin:$PATH"
+
 WORKDIR /app
 
-# Build dependencies only exist in this stage
-RUN apt-get update \
+# Build deps + venv, cached apt layer via BuildKit mount
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
-    && python -m venv /opt/venv \
-    && rm -rf /var/lib/apt/lists/*
-ENV PATH="/opt/venv/bin:$PATH"
+    && python -m venv /opt/venv
 
-# Copy only dependency-related files first
+# Dependency metadata first (cache layer)
 COPY requirements.txt setup.py ./
 
-# Install Python dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --no-compile -r requirements.txt
+    pip install --no-compile -r requirements.txt
 
-# Install application
 COPY src ./src
-RUN pip install --no-cache-dir --no-compile . --no-deps
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-compile . --no-deps
 
-# Download required NLTK resources, then VALIDATE them immediately.
-# This is critical: nltk.download() can silently write a truncated/corrupt
-# zip on a flaky connection. Without validation, the build "succeeds" but
-# the app crashes at runtime with zipfile.BadZipFile the first time a
-# gunicorn worker tries to lazily load the corpus — much harder to debug
-# than a failed build.
-RUN python -c "import nltk; \
-    nltk.download('stopwords', download_dir='/opt/nltk_data'); \
-    nltk.download('wordnet', download_dir='/opt/nltk_data')" \
-    && python -c "import nltk; nltk.data.path.insert(0, '/opt/nltk_data'); \
-    nltk.data.find('corpora/wordnet.zip'); \
-    nltk.data.find('corpora/stopwords.zip'); \
-    print('NLTK data verified OK')"
-
-# Clean build caches only. pip/setuptools are DELIBERATELY KEPT: mlflow
-# imports pkg_resources at runtime, and pkg_resources pulls jaraco.text
-# from setuptools's vendored bundle (setuptools/_vendor/jaraco). Deleting
-# setuptools breaks mlflow with "ModuleNotFoundError: No module named
-# 'jaraco'" the first time a gunicorn worker imports it.
-RUN rm -rf /root/.cache /tmp/*
+# NLTK resources
+RUN python - <<'PY'
+import nltk
+download_dir = "/opt/nltk_data"
+for resource in ("stopwords", "wordnet"):
+    if not nltk.download(resource, download_dir=download_dir, quiet=False):
+        raise SystemExit(f"Failed to download NLTK resource: {resource}")
+nltk.data.path.insert(0, download_dir)
+for resource in ("corpora/stopwords", "corpora/wordnet"):
+    try:
+        nltk.data.find(resource)
+    except LookupError:
+        nltk.data.find(resource + ".zip")
+print("NLTK data verified successfully.")
+PY
 
 # ============================================================
 # STAGE 2 — RUNTIME
 # ============================================================
-FROM python:3.10-slim AS runtime
+FROM python:3.10-slim-bookworm AS runtime
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PATH="/opt/venv/bin:$PATH" \
     NLTK_DATA=/opt/nltk_data \
+    PATH="/opt/venv/bin:$PATH" \
     FLASK_APP=flask_app/app.py
+
 WORKDIR /app
 
-# Copy only runtime dependencies
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /opt/nltk_data /opt/nltk_data
+RUN addgroup --system --gid 10001 appgroup \
+    && adduser --system --uid 10001 --gid 10001 appuser \
+    && mkdir -p /app/logs \
+    && chown -R appuser:appgroup /app/logs
 
-# Application files only
-COPY src ./src
-COPY flask_app ./flask_app
-COPY models ./models
+COPY --from=builder --chown=appuser:appgroup /opt/venv /opt/venv
+COPY --from=builder --chown=appuser:appgroup /opt/nltk_data /opt/nltk_data
+COPY --chown=appuser:appgroup flask_app ./flask_app
+COPY --chown=appuser:appgroup models ./models
 
-# Create non-root user and required directory (logs dir must exist and be
-# writable by this UID before the app starts, or gunicorn workers crash
-# with PermissionError on boot). Also re-chown /opt/nltk_data and
-# /opt/venv — COPY --from=builder preserves root ownership by default,
-# and this UID can't read root-owned files, which makes nltk.data.find()
-# silently fail and fall back to a runtime download that then also fails
-# with PermissionError (no write access to the default /nltk_data path).
-RUN mkdir -p /app/logs \
-    && chown -R 10001:10001 /app /opt/nltk_data /opt/venv
-USER 10001:10001
-
+USER appuser
 EXPOSE 80
 
-# No curl required — uses Python's stdlib for the healthcheck
 HEALTHCHECK --interval=30s \
     --timeout=5s \
     --start-period=15s \
     --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:80/health', timeout=3)" || exit 1
-
-# DAGSHUB_PAT must be supplied at `docker run` time, never baked into the image.
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:80/health', timeout=3)" \
+    || exit 1
 
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:80", \

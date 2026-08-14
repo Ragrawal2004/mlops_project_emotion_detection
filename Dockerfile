@@ -52,9 +52,11 @@ FROM python:3.10-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    NLTK_DATA=/opt/nltk_data \
     PATH="/opt/venv/bin:$PATH" \
-    FLASK_APP=flask_app/app.py
+    NLTK_DATA=/opt/nltk_data \
+    FLASK_APP=flask_app/app.py \
+    WEB_CONCURRENCY=2 \
+    APP_ROOT=/app
 
 WORKDIR /app
 

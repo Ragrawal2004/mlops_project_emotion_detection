@@ -17,7 +17,7 @@ load_dotenv()
 # --------------------------------------------------------------------------
 # Project paths
 # --------------------------------------------------------------------------
-PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
+PROJECT_ROOT: Path = Path(os.environ.get("APP_ROOT", Path(__file__).resolve().parents[2]))
 
 DATA_DIR: Path = PROJECT_ROOT / "data"
 RAW_DATA_DIR: Path = DATA_DIR / "raw"

@@ -159,7 +159,12 @@ jobs:
             sleep 3
           done
 
-          echo "Smoke test failed — container did not become healthy."
+          echo "===== Smoke test failed — diagnostics below ====="
+          echo "--- docker ps -a ---"
+          docker ps -a
+          echo "--- curl verbose ---"
+          curl -v http://localhost:80/health || true
+          echo "--- container logs ---"
           docker logs smoke-test
           exit 1
         env:

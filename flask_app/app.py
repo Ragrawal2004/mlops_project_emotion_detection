@@ -9,7 +9,8 @@ import pickle
 
 import mlflow
 import pandas as pd
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request,jsonify
+import time
 
 from src.config.config import (
     REGISTERED_MODEL_NAME,
@@ -33,7 +34,7 @@ logger.debug("Tracking URI: %s", mlflow.get_tracking_uri())
 ensure_nltk_resources()
 
 app = Flask(__name__)
-
+_STARTED_AT = time.time()
 
 def get_latest_model_version(model_name: str) -> str:
     """Return the highest registered version number for ``model_name``.
@@ -73,7 +74,18 @@ model, vectorizer = load_model_and_vectorizer()
 def home():
     """Render the input form."""
     return render_template("index.html")
-
+@app.route("/health")
+def health():
+    """Liveness/readiness probe."""
+    is_ready = model is not None and vectorizer is not None
+    payload = {
+        "status": "ok" if is_ready else "degraded",
+        "model_loaded": model is not None,
+        "vectorizer_loaded": vectorizer is not None,
+        "registered_model_name": REGISTERED_MODEL_NAME,
+        "uptime_seconds": round(time.time() - _STARTED_AT, 1),
+    }
+    return jsonify(payload), 200 if is_ready else 503
 
 @app.route("/predict", methods=["POST"])
 def predict():

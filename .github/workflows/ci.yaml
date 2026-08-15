@@ -183,59 +183,58 @@ jobs:
           docker push ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
   # --------------------------------------------------------------------
-  # 3. Deploy the pushed image to EC2
+  # 3. Deploy via AWS CodeDeploy — bundle appspec + scripts, upload to
+  #    S3, trigger a deployment. CodeDeploy's agent (already running on
+  #    EC2) pulls the ECR image itself via deploy/scripts/start_docker.sh.
   # --------------------------------------------------------------------
   deploy:
-    name: Deploy to EC2
+    name: Deploy via CodeDeploy
     needs: docker-build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -euo pipefail
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-            AWS_REGION="ap-south-1"
-            ECR_REPOSITORY="rounak_mlflow"
-            ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      # Only the CodeDeploy lifecycle files are needed on the instance —
+      # not the whole repo. validate.sh is included since appspec.yml's
+      # ValidateService hook depends on it.
+      - name: Zip deployment bundle
+        run: |
+          zip -r deployment.zip \
+            appspec.yml \
+            deploy/scripts/install_dependencies.sh \
+            deploy/scripts/start_docker.sh \
+            deploy/scripts/validate.sh
 
-            echo "Logging in to ECR..."
-            aws ecr get-login-password --region "${AWS_REGION}" | \
-              docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp deployment.zip s3://${{ secrets.CODEDEPLOY_S3_BUCKET }}/deployment-${{ github.sha }}.zip
 
-            echo "Freeing disk space (old images/containers)..."
-            docker system prune -af --volumes || true
+      - name: Trigger CodeDeploy deployment
+        id: create-deployment
+        run: |
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name ${{ secrets.CODEDEPLOY_APP_NAME }} \
+            --deployment-group-name ${{ secrets.CODEDEPLOY_DEPLOYMENT_GROUP }} \
+            --deployment-config-name CodeDeployDefault.OneAtATime \
+            --s3-location bucket=${{ secrets.CODEDEPLOY_S3_BUCKET }},key=deployment-${{ github.sha }}.zip,bundleType=zip \
+            --file-exists-behavior OVERWRITE \
+            --query 'deploymentId' --output text)
 
-            echo "Pulling latest image..."
-            docker pull "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+          echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+          echo "Deployment triggered: $DEPLOYMENT_ID"
 
-            echo "Stopping old container (if any)..."
-            docker stop sentiment-app || true
-            docker rm sentiment-app || true
-
-            echo "Starting new container..."
-            docker run -d \
-              --name sentiment-app \
-              -p 80:80 \
-              -e DAGSHUB_PAT="${{ secrets.DAGSHUB_PAT }}" \
-              --restart unless-stopped \
-              "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
-
-            echo "Waiting for the app to become healthy..."
-            for i in {1..15}; do
-              if curl -fs http://localhost:80/health > /dev/null; then
-                echo "Deployment successful."
-                exit 0
-              fi
-              sleep 3
-            done
-
-            echo "Deployment health check failed!"
-            docker logs sentiment-app
-            exit 1
+      - name: Wait for deployment to finish
+        run: |
+          aws deploy wait deployment-successful \
+            --deployment-id ${{ steps.create-deployment.outputs.deployment_id }}
